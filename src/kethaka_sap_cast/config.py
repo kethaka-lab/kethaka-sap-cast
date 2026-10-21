@@ -11,7 +11,7 @@ PROCESSED = DATA / "processed"  # daily tables used for modelling
 REPORTS = ROOT / "reports"
 
 # The farm logbook transcription (Apr-Dec 2025)
-FARM_RECORDS_FILE = RAW / "thelijja_2025.xlsx"
+FARM_RECORDS_FILE = RAW / "thelijja_2025_full.xlsx"
 
 # Tapper name spellings and aliases (for cleaning the logbook)
 TAPPER_ALIASES_FILE = RAW / "tapper_aliases.json"

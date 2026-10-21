@@ -84,3 +84,26 @@ def clean_records(raw: pd.DataFrame, aliases: dict[str, str], slip_factor: float
         & ~df["is_duplicate"]
     )
     return df
+
+ # One row per (date, tapper). Split collections on the same day are summed.
+def daily_by_tapper(records: pd.DataFrame) -> pd.DataFrame:
+    kept = records[records["kept"]]
+    out = (
+        kept.groupby(["date", "tapper"])
+        .agg(volume_l=("volume_l", "sum"), n_entries=("volume_l", "size"))
+        .reset_index()
+    )
+    out["volume_l"] = out["volume_l"].round(2)
+    return out
+
+# One row per calendar day: total sap, tappers reporting, litres per tapper.
+def daily_estate(by_tapper: pd.DataFrame) -> pd.DataFrame:
+    days = by_tapper.groupby("date").agg(
+        total_l=("volume_l", "sum"),
+        n_tappers=("tapper", "nunique"),
+    )
+    all_dates = pd.date_range(days.index.min(), days.index.max(), freq="D", name="date")
+    days = days.reindex(all_dates)
+    days["n_tappers"] = days["n_tappers"].fillna(0).astype(int)
+    days["yield_per_tapper_l"] = days["total_l"] / days["n_tappers"].replace(0, pd.NA)
+    return days.round(2).reset_index()
