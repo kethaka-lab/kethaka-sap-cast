@@ -48,3 +48,15 @@ def normalise_name(name, aliases: dict[str, str]) -> str | None:
     if pd.isna(name):
         return None
     return aliases.get(name_key(name))
+
+# Volume cells -> float litres. Anything non-numeric becomes NaN.
+def to_volume(values: pd.Series) -> pd.Series:
+    return pd.to_numeric(values, errors="coerce")
+
+# Divide by 10 any reading more than `factor` x that tapper's median.
+# Returns (fixed_volume, was_fixed) so every change can be reported.
+def fix_decimal_slips(volume: pd.Series, tapper: pd.Series, factor: float) -> tuple[pd.Series, pd.Series]:
+    median = volume.groupby(tapper).transform("median")
+    was_fixed = volume > factor * median
+    fixed = volume.where(~was_fixed, volume / 10)
+    return fixed, was_fixed

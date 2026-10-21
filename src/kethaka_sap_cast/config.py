@@ -20,3 +20,7 @@ TAPPER_ALIASES_FILE = RAW / "tapper_aliases.json"
 FARM_LAT = 6.362
 FARM_LON = 80.3518
 TIMEZONE = "Asia/Colombo"
+
+# A reading more than this many times the tapper's median is treated as a
+# misplaced decimal point (e.g. 140 typed for 14.0) and divided by 10.
+DECIMAL_SLIP_FACTOR = 3.0
