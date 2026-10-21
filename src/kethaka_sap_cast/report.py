@@ -18,6 +18,7 @@ def write_report(records: pd.DataFrame, by_tapper: pd.DataFrame, estate: pd.Data
             "Split collections summed (tapper-days with 2+ entries)",
             "Calendar days",
             "Days with no entries",
+            "Incomplete days (tapper present, did not tap)",
         ],
         "value": [
             len(records),
@@ -28,6 +29,7 @@ def write_report(records: pd.DataFrame, by_tapper: pd.DataFrame, estate: pd.Data
             int((by_tapper["n_entries"] > 1).sum()),
             len(estate),
             int((estate["n_tappers"] == 0).sum()),
+            int((~estate["is_complete"]).sum()),
         ],
     })
 

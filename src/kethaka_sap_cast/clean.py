@@ -97,7 +97,8 @@ def daily_by_tapper(records: pd.DataFrame) -> pd.DataFrame:
     return out
 
 # One row per calendar day: total sap, tappers reporting, litres per tapper.
-def daily_estate(by_tapper: pd.DataFrame) -> pd.DataFrame:
+# A day is incomplete if any tapper has an entry with no volume (blank in the logbook).
+def daily_estate(by_tapper: pd.DataFrame, records: pd.DataFrame) -> pd.DataFrame:
     days = by_tapper.groupby("date").agg(
         total_l=("volume_l", "sum"),
         n_tappers=("tapper", "nunique"),
@@ -106,4 +107,8 @@ def daily_estate(by_tapper: pd.DataFrame) -> pd.DataFrame:
     days = days.reindex(all_dates)
     days["n_tappers"] = days["n_tappers"].fillna(0).astype(int)
     days["yield_per_tapper_l"] = days["total_l"] / days["n_tappers"].replace(0, pd.NA)
+
+    blanks = records[records["volume_l"].isna() & records["tapper"].notna()].groupby("date").size()
+    days["blank_entries"] = blanks.reindex(all_dates, fill_value=0)
+    days["is_complete"] = days["blank_entries"] == 0
     return days.round(2).reset_index()
