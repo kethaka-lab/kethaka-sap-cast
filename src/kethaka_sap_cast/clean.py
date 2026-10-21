@@ -60,3 +60,27 @@ def fix_decimal_slips(volume: pd.Series, tapper: pd.Series, factor: float) -> tu
     was_fixed = volume > factor * median
     fixed = volume.where(~was_fixed, volume / 10)
     return fixed, was_fixed
+
+# Apply every cleaning rule. One row per logbook entry, with a column
+# for each kind of fix so nothing is changed silently.
+def clean_records(raw: pd.DataFrame, aliases: dict[str, str], slip_factor: float) -> pd.DataFrame:
+    # 1. Drop fully blank rows (empty lines in the sheet)
+    df = raw.dropna(subset=["date_raw", "name_raw", "value_raw"], how="all").copy()
+
+    # 2-4. Dates, names, volumes
+    df["date"] = df["date_raw"].map(parse_date)
+    df["tapper"] = df["name_raw"].map(lambda n: normalise_name(n, aliases))
+    df["volume_l"] = to_volume(df["value_raw"])
+    df["volume_l"], df["fixed_decimal_slip"] = fix_decimal_slips(df["volume_l"], df["tapper"], slip_factor)
+
+    # 5. Exact repeats: same date, tapper and value -> typed twice, keep the first
+    df["is_duplicate"] = df.duplicated(subset=["date", "tapper", "volume_l"]) & df["volume_l"].notna()
+
+    # A row is usable only if it has a date, a known tapper, a volume, and isn't a repeat
+    df["kept"] = (
+        df["date"].notna()
+        & df["tapper"].notna()
+        & df["volume_l"].notna()
+        & ~df["is_duplicate"]
+    )
+    return df
