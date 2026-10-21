@@ -1,0 +1,32 @@
+[project]
+name = "kethaka-sap-cast"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Manuja Yomith", email = "yomithk03@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "matplotlib>=3.11.2",
+    "numpy>=2.4.6",
+    "openpyxl>=3.1.5",
+    "pandas>=3.0.6",
+    "prophet>=1.5.0",
+    "requests>=2.34.2",
+    "scikit-learn>=1.9.1",
+    "statsmodels>=0.15.0",
+    "xgboost>=3.2.0",
+]
+
+[project.scripts]
+kethaka-sap-cast = "kethaka_sap_cast:main"
+
+[build-system]
+requires = ["uv_build>=0.13.3,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.4.0",
+]

@@ -218,3 +218,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Kethaka: farm data
+data/raw/*
+data/interim/*
+data/processed/*
+!data/**/.gitkeep
