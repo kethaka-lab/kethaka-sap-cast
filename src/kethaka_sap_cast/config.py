@@ -13,6 +13,9 @@ REPORTS = ROOT / "reports"
 # The farm logbook transcription (Apr-Dec 2025)
 FARM_RECORDS_FILE = RAW / "thelijja_2025.xlsx"
 
+# Tapper name spellings and aliases (for cleaning the logbook)
+TAPPER_ALIASES_FILE = RAW / "tapper_aliases.json"
+
 # ---- Farm location (used for the Open-Meteo weather download) ---------
 FARM_LAT = 6.362
 FARM_LON = 80.3518
