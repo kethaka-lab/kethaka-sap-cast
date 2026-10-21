@@ -16,6 +16,7 @@ dependencies = [
     "requests>=2.34.2",
     "scikit-learn>=1.9.1",
     "statsmodels>=0.15.0",
+    "tabulate>=0.10.0",
     "xgboost>=3.2.0",
 ]
 
@@ -29,4 +30,5 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "ipykernel>=7.4.0",
+    "pytest>=9.1.1",
 ]
