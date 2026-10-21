@@ -5,6 +5,7 @@ from kethaka_sap_cast import config
 from kethaka_sap_cast.clean import clean_records, daily_by_tapper, daily_estate, load_aliases
 from kethaka_sap_cast.farm_records import load_raw
 from kethaka_sap_cast.weather import fetch_weather
+from kethaka_sap_cast.report import write_report
 
 
 def run() -> None:
@@ -31,6 +32,7 @@ def run() -> None:
     by_tapper.to_csv(config.PROCESSED / "daily_by_tapper.csv", index=False)
     estate.to_csv(config.PROCESSED / "daily_estate.csv", index=False)
     dataset.to_csv(config.PROCESSED / "dataset.csv", index=False)
+    write_report(records, by_tapper, estate, config.REPORTS / "data_quality.md")
 
     print(f"Done: {records['kept'].sum()}/{len(records)} entries kept, "
           f"{len(dataset)} days x {dataset.shape[1]} columns, "
