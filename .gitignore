@@ -226,3 +226,6 @@ data/processed/*
 !data/**/.gitkeep
 
 .DS_Store
+
+# Trained models contain training data 
+artifacts/

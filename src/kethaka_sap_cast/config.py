@@ -16,6 +16,11 @@ FARM_RECORDS_FILE = RAW / "thelijja_2025_full.xlsx"
 # Tapper name spellings and aliases (for cleaning the logbook)
 TAPPER_ALIASES_FILE = RAW / "tapper_aliases.json"
 
+# Trained model files
+ARTIFACTS = ROOT / "artifacts"
+MODEL_FILE = ARTIFACTS / "prophet_rain.json"
+MODEL_META_FILE = ARTIFACTS / "prophet_rain.meta.json"
+
 # ---- Farm location (used for the Open-Meteo weather download) ---------
 FARM_LAT = 6.362
 FARM_LON = 80.3518
