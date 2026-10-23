@@ -60,5 +60,6 @@ def test_split_collections_summed_and_repeats_dropped():
     assert by_tapper["T1"] == 13.6
     assert by_tapper["T2"] == 21.3
 
-    estate = daily_estate(daily_by_tapper(records))
+    estate = daily_estate(daily_by_tapper(records), records)
     assert estate["total_l"].item() == 34.9
+    assert estate["is_complete"].item()

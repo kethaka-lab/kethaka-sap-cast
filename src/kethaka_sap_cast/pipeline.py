@@ -19,7 +19,7 @@ def run() -> None:
     print("2/4 Cleaning")
     records = clean_records(raw, aliases, config.DECIMAL_SLIP_FACTOR)
     by_tapper = daily_by_tapper(records)
-    estate = daily_estate(by_tapper)
+    estate = daily_estate(by_tapper, records)
 
     print("3/4 Weather")
     start = estate["date"].min().strftime("%Y-%m-%d")

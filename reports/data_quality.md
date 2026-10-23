@@ -13,6 +13,7 @@
 | Split collections summed (tapper-days with 2+ entries) |      81 |
 | Calendar days                                          |     365 |
 | Days with no entries                                   |       0 |
+| Incomplete days (tapper present, did not tap)          |      12 |
 
 ## Decimal slips fixed
 
