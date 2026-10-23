@@ -10,8 +10,14 @@ import itertools
 import warnings
 
 from statsmodels.tsa.arima.model import ARIMA
+import logging
+
+from prophet import Prophet
 
 TARGET = "sap_l"
+
+logging.getLogger("cmdstanpy").disabled = True        # Prophet's optimiser is very chatty
+logging.getLogger("prophet").setLevel(logging.ERROR)
 
 # Every future day = the last known day.
 def naive(train: pd.DataFrame, test: pd.DataFrame) -> np.ndarray:
@@ -35,3 +41,21 @@ def arima(train: pd.DataFrame, test: pd.DataFrame) -> np.ndarray:
             if best is None or fit.aic < best.aic:
                 best = fit
     return best.forecast(len(test))
+
+# Prophet: piecewise-linear trend + effect of regressors.
+def _prophet(train: pd.DataFrame, test: pd.DataFrame, regressors: list[str]) -> np.ndarray:
+    model = Prophet(yearly_seasonality=False, weekly_seasonality=False, daily_seasonality=False)
+    for name in regressors:
+        model.add_regressor(name)
+    history = train[["date", TARGET, *regressors]].rename(columns={"date": "ds", TARGET: "y"})
+    model.fit(history)
+    future = test[["date", *regressors]].rename(columns={"date": "ds"})
+    return model.predict(future)["yhat"].values
+
+# Prophet without weather.
+def prophet(train: pd.DataFrame, test: pd.DataFrame) -> np.ndarray:
+    return _prophet(train, test, regressors=[])
+
+# Prophet with rain over the previous 10 days as an input.
+def prophet_rain(train: pd.DataFrame, test: pd.DataFrame) -> np.ndarray:
+    return _prophet(train, test, regressors=["rain_10d"])

@@ -12,6 +12,8 @@ MODELS = {
     "Naive (last value)": models.naive,
     "Mean of last 7 days": models.mean_7d,
     "ARIMA (AIC-selected)": models.arima,
+    "Prophet": models.prophet,
+    "Prophet + 10-day rain": models.prophet_rain,
 }
 
 EXPERIMENTS = config.ROOT / "experiments"
