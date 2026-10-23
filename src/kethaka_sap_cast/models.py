@@ -42,13 +42,18 @@ def arima(train: pd.DataFrame, test: pd.DataFrame) -> np.ndarray:
                 best = fit
     return best.forecast(len(test))
 
-# Prophet: piecewise-linear trend + effect of regressors.
-def _prophet(train: pd.DataFrame, test: pd.DataFrame, regressors: list[str]) -> np.ndarray:
+#  Train Prophet: piecewise-linear trend + effect of regressors.
+# No yearly seasonality (only one year of data) and no weekly seasonality (none in EDA).
+def fit_prophet(train: pd.DataFrame, regressors: list[str]) -> Prophet:
     model = Prophet(yearly_seasonality=False, weekly_seasonality=False, daily_seasonality=False)
     for name in regressors:
         model.add_regressor(name)
-    history = train[["date", TARGET, *regressors]].rename(columns={"date": "ds", TARGET: "y"})
-    model.fit(history)
+    model.fit(train[["date", TARGET, *regressors]].rename(columns={"date": "ds", TARGET: "y"}))
+    return model
+
+
+def _prophet(train: pd.DataFrame, test: pd.DataFrame, regressors: list[str]) -> np.ndarray:
+    model = fit_prophet(train, regressors)
     future = test[["date", *regressors]].rename(columns={"date": "ds"})
     return model.predict(future)["yhat"].values
 
