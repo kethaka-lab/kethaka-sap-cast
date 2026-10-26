@@ -12,12 +12,17 @@ from datetime import date
 
 import pandas as pd
 
+from pathlib import Path
+
+from fastapi.responses import FileResponse
+
 app = FastAPI(
     title="Kethaka C4 - Sap Yield Forecast",
     description="7-day daily sap forecast for the estate, with replay mode for verification.",
     version="0.1.0",
 )
 
+STATIC = Path(__file__).parent / "static"
 
 class HistoryDay(BaseModel):
     date: str
@@ -51,6 +56,11 @@ class ForecastResponse(BaseModel):
 @app.get("/health", tags=["service"])
 def health() -> dict:
     return {"status": "ok", "service": "c4-forecast"}
+
+@app.get("/", include_in_schema=False)
+def demo_page():
+    """Demo page for presenting forecasts and replay verification."""
+    return FileResponse(STATIC / "index.html")
 
 
 # Daily sap forecast.

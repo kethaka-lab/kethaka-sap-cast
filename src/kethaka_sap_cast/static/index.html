@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kethaka C4 – Sap Forecast</title>
+<style>
+  :root {
+    --bg: #f6f7f5; --card: #ffffff; --ink: #1d2320; --muted: #66706a; --line: #dfe3e0;
+    --actual: #1d2320; --forecast: #2f7d4f; --band: rgba(47, 125, 79, 0.15);
+    --hit: #2f7d4f; --miss: #b4442f; --skip: #9aa29d; --accent: #2f7d4f;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 1080px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
+  .controls label { display: flex; flex-direction: column; font-size: 13px; color: var(--muted); gap: 4px; }
+  input[type=date] { font: inherit; padding: 7px 8px; border: 1px solid var(--line); border-radius: 6px; }
+  button { font: inherit; font-weight: 600; padding: 8px 14px; border-radius: 6px; cursor: pointer;
+           border: 1px solid var(--accent); background: var(--accent); color: #fff; }
+  button.secondary { background: #fff; color: var(--accent); }
+  button:disabled { opacity: 0.5; cursor: wait; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+  .stat .k { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .stat .v { font-size: 22px; font-weight: 650; }
+  .note { font-size: 14px; color: var(--muted); margin: 8px 0 0; }
+  .banner { padding: 10px 12px; border-radius: 6px; margin-top: 12px; font-weight: 600; display: none; }
+  .banner.ok { display: block; background: #e5f4e4; color: #1e5a33; }
+  .banner.diff { display: block; background: #fbebeb; color: #8a2b1d; }
+  .error { display: none; background: #fbebeb; color: #8a2b1d; padding: 10px 12px; border-radius: 6px; margin-top: 12px; }
+  svg { width: 100%; height: auto; display: block; }
+  .legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 14px; color: var(--muted); margin-top: 8px; }
+  .legend i { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: -2px; margin-right: 6px; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th, td { text-align: right; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  th:first-child, td:first-child { text-align: left; }
+  th { font-size: 13px; color: var(--muted); font-weight: 600; }
+  .hit { color: var(--hit); } .miss { color: var(--miss); } .skip { color: var(--skip); }
+  .wide { overflow-x: auto; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Kethaka - Kithul sap yield forecast</h1>
+  <p class="sub">7-day daily sap forecast for the estate (litres)</p>
+
+  <section class="card">
+    <div class="controls">
+      <button id="latest">Latest forecast</button>
+      <label>Replay from date (verification)
+        <input type="date" id="asof" min="2025-03-31" max="2025-12-24" value="2025-11-20">
+      </label>
+      <button id="replay" class="secondary">Run replay</button>
+    </div>
+    <p class="note">Replay trains a fresh model on data up to the chosen date only, forecasts the next 7 days,
+      then shows what the logbook actually recorded. Allowed dates: 31 Mar – 24 Dec 2025.</p>
+    <p id="modeNote" class="note"></p>
+    <div id="same" class="banner"></div>
+    <div id="error" class="error"></div>
+  </section>
+
+  <section class="card stats" id="stats"></section>
+
+  <section class="card">
+    <div id="chart"></div>
+    <div class="legend">
+      <span><i style="background:var(--actual)"></i>Recorded (logbook)</span>
+      <span><i style="background:var(--forecast)"></i>Forecast</span>
+      <span><i style="background:var(--band)"></i>80% forecast range</span>
+      <span><i style="background:var(--skip)"></i>Tapper did not tap (not scored)</span>
+    </div>
+  </section>
+
+  <section class="card wide">
+    <table id="table"></table>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const previous = {};   // last response per request, to show determinism
+
+async function run(asOf) {
+  setBusy(true);
+  $("error").style.display = "none";
+  const params = new URLSearchParams({ horizon_days: 7 });
+  if (asOf) params.set("as_of", asOf);
+  try {
+    const res = await fetch(`/forecast?${params}`);
+    const body = await res.json();
+    if (!res.ok) throw new Error(typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail));
+    showSameAsBefore(params.toString(), body);
+    render(body);
+  } catch (err) {
+    $("error").textContent = err.message;
+    $("error").style.display = "block";
+  } finally {
+    setBusy(false);
+  }
+}
+
+function setBusy(busy) {
+  $("latest").disabled = busy;
+  $("replay").disabled = busy;
+}
+
+function showSameAsBefore(key, body) {
+  const banner = $("same");
+  const now = JSON.stringify(body.forecast);
+  if (previous[key] === undefined) {
+    banner.className = "banner";
+  } else if (previous[key] === now) {
+    banner.className = "banner ok";
+    banner.textContent = "Same request run again: identical forecast and range (deterministic).";
+  } else {
+    banner.className = "banner diff";
+    banner.textContent = "Same request run again: the result changed.";
+  }
+  previous[key] = now;
+}
+
+function stat(label, value) {
+  return `<div class="stat"><div class="k">${label}</div><div class="v">${value}</div></div>`;
+}
+
+function render(body) {
+  const replay = body.mode === "replay";
+  const scored = body.forecast.filter((d) => d.tapped);
+  const inside = scored.filter((d) => d.actual_l >= d.lower_l && d.actual_l <= d.upper_l).length;
+
+  $("stats").innerHTML = [
+    stat("Mode", replay ? "Replay" : "Latest"),
+    stat("Forecast made on", body.as_of),
+    stat("Model", body.model),
+    stat("Backtest error (MAPE)", `${body.backtest_mape_pct.toFixed(2)}%`),
+    replay ? stat("This week's error", body.replay_mape_pct == null ? "–" : `${body.replay_mape_pct.toFixed(2)}%`) : "",
+    replay ? stat("Recorded inside range", `${inside} of ${scored.length}`) : "",
+  ].join("");
+
+  $("modeNote").innerHTML = replay
+    ? `<strong>Replay:</strong> model trained only on data up to ${body.as_of}; recorded values were hidden from it.`
+    : `<strong>Latest:</strong> forecast runs from the last logbook entry (${body.as_of}). Live forecasts start once C3 sensor data flows.`;
+
+  renderChart(body);
+  renderTable(body);
+}
+
+function renderChart(body) {
+  const W = 1000, H = 360, L = 52, R = 16, T = 16, B = 40;
+  const days = [...body.history.map((d) => d.date), ...body.forecast.map((d) => d.date)];
+  const x = (date) => L + (days.indexOf(date) / (days.length - 1)) * (W - L - R);
+
+  const values = [
+    ...body.history.map((d) => d.yield_l),
+    ...body.forecast.flatMap((d) => [d.lower_l, d.upper_l, d.actual_l]).filter((v) => v != null),
+  ];
+  let lo = Math.floor(Math.min(...values) / 5) * 5, hi = Math.ceil(Math.max(...values) / 5) * 5;
+  const y = (v) => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
+
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Recorded and forecast sap">`;
+  for (let v = lo; v <= hi; v += 5) {
+    svg += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/>`;
+    svg += `<text x="${L - 8}" y="${y(v) + 4}" text-anchor="end" font-size="12" fill="var(--muted)">${v}</text>`;
+  }
+  days.forEach((d, i) => {
+    if (i % 2 === 0) svg += `<text x="${x(d)}" y="${H - 14}" text-anchor="middle" font-size="12" fill="var(--muted)">${d.slice(5)}</text>`;
+  });
+  svg += `<text x="14" y="${(H - B) / 2}" font-size="12" fill="var(--muted)" transform="rotate(-90 14 ${(H - B) / 2})" text-anchor="middle">litres per day</text>`;
+
+  // Forecast cut-off
+  const cut = x(body.as_of);
+  svg += `<line x1="${cut}" x2="${cut}" y1="${T}" y2="${H - B}" stroke="var(--muted)" stroke-dasharray="4 4"/>`;
+  svg += `<text x="${cut + 6}" y="${T + 12}" font-size="12" fill="var(--muted)">forecast made here</text>`;
+
+  // 80% range band
+  const f = body.forecast;
+  const band = [...f.map((d) => `${x(d.date)},${y(d.upper_l)}`), ...[...f].reverse().map((d) => `${x(d.date)},${y(d.lower_l)}`)];
+  svg += `<polygon points="${band.join(" ")}" fill="var(--band)"/>`;
+
+  // Recorded history
+  svg += `<polyline points="${body.history.map((d) => `${x(d.date)},${y(d.yield_l)}`).join(" ")}" fill="none" stroke="var(--actual)" stroke-width="2.5"/>`;
+  body.history.filter((d) => !d.tapped).forEach((d) => {
+    svg += `<circle cx="${x(d.date)}" cy="${y(d.yield_l)}" r="5" fill="var(--skip)"/>`;
+  });
+
+  // Forecast line
+  svg += `<polyline points="${f.map((d) => `${x(d.date)},${y(d.yield_l)}`).join(" ")}" fill="none" stroke="var(--forecast)" stroke-width="2.5"/>`;
+  f.forEach((d) => { svg += `<circle cx="${x(d.date)}" cy="${y(d.yield_l)}" r="3.5" fill="var(--forecast)"/>`; });
+
+  // Recorded values for the forecast days (replay only)
+  f.filter((d) => d.actual_l != null).forEach((d) => {
+    svg += `<circle cx="${x(d.date)}" cy="${y(d.actual_l)}" r="5" fill="${d.tapped ? "var(--actual)" : "var(--skip)"}"/>`;
+  });
+
+  $("chart").innerHTML = svg + "</svg>";
+}
+
+function renderTable(body) {
+  const replay = body.mode === "replay";
+  const head = `<tr><th>Date</th><th>Forecast (L)</th><th>Range (L)</th>${replay ? "<th>Recorded (L)</th><th>Error</th><th>Inside range</th>" : ""}</tr>`;
+  const rows = body.forecast.map((d) => {
+    let extra = "";
+    if (replay) {
+      if (!d.tapped) {
+        extra = `<td>${d.actual_l.toFixed(1)}</td><td class="skip">not tapped</td><td class="skip">–</td>`;
+      } else {
+        const ok = d.actual_l >= d.lower_l && d.actual_l <= d.upper_l;
+        extra = `<td>${d.actual_l.toFixed(1)}</td><td>${d.error_pct.toFixed(1)}%</td><td class="${ok ? "hit" : "miss"}">${ok ? "yes" : "no"}</td>`;
+      }
+    }
+    return `<tr><td>${d.date}</td><td>${d.yield_l.toFixed(1)}</td><td>${d.lower_l.toFixed(1)} – ${d.upper_l.toFixed(1)}</td>${extra}</tr>`;
+  });
+  $("table").innerHTML = head + rows.join("");
+}
+
+$("latest").addEventListener("click", () => run(null));
+$("replay").addEventListener("click", () => run($("asof").value));
+run(null);
+</script>
+</body>
+</html>
